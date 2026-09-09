@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIMS</title>
+<style>
+  body{margin:0;height:100vh;display:grid;place-items:center;background:#F3F5F7;color:#6B7686;
+       font:14px/1.45 'IBM Plex Sans',system-ui,sans-serif}
+</style>
+<script src="config.js"></script>
+<script src="lims-api.js"></script>
+</head>
+<body>
+<p>Opening the laboratory workspace&hellip;</p>
+<script>
+  var s = LIMS.session();
+  location.replace(s && s.token ? LIMS.homeFor(s.portal) : LIMS.loginPage);
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Certificate verification</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#1B2A47;--teal:#2A8A7C;--bg:#F3F5F7;--line:#DDE3EA;--ink:#1B2433;--muted:#6B7686;--red:#B23A3A;--amber:#B7791F;--green:#2F7D4F}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 'IBM Plex Sans',system-ui,sans-serif;padding:40px 20px}
+  .card{max-width:540px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:28px}
+  .lab{color:var(--navy);font-weight:600;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:20px}
+  h1{font-size:19px;margin:0 0 14px}
+  .ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
+  dl{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;margin:0}
+  dt{color:var(--muted)}dd{margin:0}
+  .note{margin-top:18px;padding:10px 12px;background:#F7FAF9;border-radius:6px;color:var(--muted);font-size:14px}
+  form{display:flex;gap:8px;margin-top:16px}
+  input{flex:1;padding:9px 11px;border:1px solid var(--line);border-radius:6px;font:inherit}
+  button{background:var(--teal);color:#fff;border:0;border-radius:6px;padding:9px 16px;font:inherit;font-weight:500;cursor:pointer}
+</style>
+<script src="config.js"></script>
+<script src="lims-api.js"></script>
+</head>
+<body>
+<div class="card">
+  <div class="lab" data-lab-name>Laboratory</div>
+  <div id="result"><h1>Checking the certificate&hellip;</h1></div>
+</div>
+<script>
+  const el = document.getElementById('result');
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const code = new URLSearchParams(location.search).get('verify') || '';
+
+  function prompt(message, tone) {
+    el.innerHTML = `<h1 class="${tone}">${esc(message)}</h1>
+      <p>Enter the verification code printed on the certificate.</p>
+      <form id="f"><input id="c" placeholder="Verification code" value="${esc(code)}" required>
+      <button>Verify</button></form>`;
+    document.getElementById('f').addEventListener('submit', e => {
+      e.preventDefault();
+      const v = document.getElementById('c').value.trim();
+      if (v) location.search = '?verify=' + encodeURIComponent(v);
+    });
+  }
+
+  if (!code) {
+    prompt('Verify a certificate', '');
+  } else {
+    LIMS.public('verify', code).then(res => {
+      LIMS.applyLabName(res.labName);
+      if (!res.found) { prompt('No certificate matches this code', 'bad'); return; }
+      const c = res.certificate, issued = c.status === 'Issued';
+      el.innerHTML = `<h1 class="${issued ? 'ok' : 'warn'}">${esc(c.status)}</h1>
+        <dl>
+          <dt>Certificate</dt><dd>${esc(c.coaId)}</dd>
+          <dt>Revision</dt><dd>${esc(c.revision)}</dd>
+          <dt>Sample</dt><dd>${esc(c.sampleId)}</dd>
+          <dt>Issued to</dt><dd>${esc(c.client)}</dd>
+          <dt>Date of issue</dt><dd>${esc(c.issued)}</dd>
+          <dt>Signatory</dt><dd>${esc(c.signatory)}</dd>
+        </dl>
+        ${issued ? '' : '<div class="note">A newer revision of this certificate exists. Contact the laboratory before relying on this copy.</div>'}`;
+    }).catch(err => prompt(err.message, 'bad'));
+  }
+</script>
+</body>
+</html>
